@@ -749,6 +749,11 @@
                 const marketSearchInput = document.getElementById('market-search');
                 const marketSearchResults = document.getElementById('market-search-results');
                 marketSearchInput.addEventListener('input', function() {
+                    // Deselect all markets when starting a new search
+                    const marketCheckboxes = marketSelectorList.querySelectorAll('input[type="checkbox"][value]');
+                    marketCheckboxes.forEach(cb => cb.checked = false);
+                    selectAllCheckbox.checked = false;
+                    updateMapAndProperties(getSelectedMarkets());
                     const value = this.value.toLowerCase();
                     marketSearchResults.innerHTML = '';
                     if (value === '') {
@@ -761,6 +766,9 @@
                             const resultItem = document.createElement('div');
                             resultItem.textContent = market;
                             resultItem.onclick = function() {
+                                // Deselect all markets before selecting the clicked one
+                                marketCheckboxes.forEach(cb => cb.checked = false);
+                                selectAllCheckbox.checked = false;
                                 const checkbox = marketSelectorList.querySelector(`input[value="${market}"]`);
                                 if (checkbox) {
                                     checkbox.checked = true;
