@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NIOS Land Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -327,6 +327,112 @@
         .back-to-search-btn:active {
             background-color: #9a0007;
             transform: translateY(0);
+        }
+        /* iPhone-specific styles */
+        @media only screen and (max-width: 767px) {
+            #map {
+                height: calc(100vh - 60px);
+            }
+            .map-title {
+                top: 10px;
+                left: 10px;
+                font-size: 18px;
+                padding: 6px 12px;
+                max-width: 80%;
+                text-align: center;
+            }
+            .logo {
+                bottom: 10px;
+                left: 10px;
+                padding: 6px 12px;
+            }
+            .logo img {
+                width: 50px;
+                height: 40px;
+            }
+            .date-time {
+                top: 10px;
+                left: 10px;
+                font-size: 12px;
+                padding: 6px 12px;
+                right: 10px;
+                transform: none;
+            }
+            .dropdown-container {
+                top: 60px;
+                right: 10px;
+                flex-direction: column;
+                gap: 8px;
+                padding: 8px;
+            }
+            button {
+                padding: 10px;
+                font-size: 13px;
+                width: 100%;
+                touch-action: manipulation;
+            }
+            #property-selector {
+                top: 180px;
+                left: 10px;
+                max-width: 90%;
+                font-size: 13px;
+                padding: 8px;
+            }
+            #property-search-container {
+                top: 230px;
+                left: 10px;
+                max-width: 90%;
+            }
+            #market-search-container {
+                top: 280px;
+                left: 10px;
+                max-width: 90%;
+            }
+            #market-selector-container {
+                top: 330px;
+                left: 10px;
+                max-width: 90%;
+            }
+            #market-search, #property-search {
+                font-size: 13px;
+                padding: 10px;
+            }
+            #market-search-results, #search-results {
+                max-height: 150px;
+                font-size: 13px;
+            }
+            .custom-marker-icon {
+                width: 24px;
+                height: 24px;
+                font-size: 11px;
+                line-height: 20px;
+            }
+            .back-to-search-btn {
+                bottom: 10px;
+                right: 10px;
+                padding: 10px;
+                font-size: 13px;
+            }
+            .modal-content {
+                margin: 20% auto;
+                padding: 16px;
+                width: 95%;
+                max-width: 90%;
+            }
+            .close {
+                font-size: 20px;
+            }
+            .leaflet-control-layers-expanded {
+                max-width: 90%;
+                font-size: 13px;
+                padding: 8px;
+            }
+            table.key-table {
+                font-size: 11px;
+            }
+            table.key-table th, table.key-table td {
+                padding: 6px;
+            }
         }
     </style>
 </head>
