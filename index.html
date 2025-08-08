@@ -17,10 +17,11 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f5f7fa00;
         }
-        #map { 
+        #map {
             height: 100vh;
             width: 100%;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
         }
         .custom-marker-icon {
             border: 2px solid #ffffff;
@@ -300,6 +301,33 @@
         .leaflet-top.leaflet-right {
             top: 80px !important;
         }
+        /* Back to Land Search button styles */
+        .back-to-search-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: #d32f2f;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .back-to-search-btn:hover {
+            background-color: #b71c1c;
+            transform: translateY(-2px);
+        }
+        .back-to-search-btn:active {
+            background-color: #9a0007;
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -332,7 +360,9 @@
         <button id="send-excluded">Send Excluded List</button>
         <button id="screenshot-markets">Take Screenshots</button>
     </div>
-    <div id="map"></div>
+    <div id="map">
+        <a href="https://jakepistone.github.io/NIOS-LSE/" class="back-to-search-btn">Back to Land Search</a>
+    </div>
     <div id="exclusions-modal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
@@ -349,24 +379,19 @@
         const timeString = now.toLocaleTimeString('en-US', timeOptions).replace(/^0/, '');
         const dateString = now.toLocaleDateString('en-US', dateOptions);
         document.getElementById('date-time').innerHTML = `${timeString} CDT, ${dateString}`;
-
         // Initialize map with a fallback view
         const map = L.map('map').setView([37.0902, -95.7129], 4);
-
         // Define base layers
         const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-
         const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
         });
-
         const baseLayers = {
             "Street Map": streetLayer,
             "Satellite": satelliteLayer
         };
-
         // Define FEMA flood overlay with error handling
         let floodLayer;
         try {
@@ -382,13 +407,10 @@
             console.error('Error initializing FEMA Flood Layer:', error);
             floodLayer = L.layerGroup();
         }
-
         const overlays = {
             "FEMA Flood Zones": floodLayer
         };
-
         L.control.layers(baseLayers, overlays, { collapsed: true }).addTo(map);
-
         // Global variables
         const markers = {};
         let properties = [];
@@ -400,14 +422,12 @@
             'Austin': '#457b9d',
             'default': '#1a73e8'
         };
-
         // City coordinates for markets
         const marketCityCoords = {
             'Dallas': [32.7767, -96.7970],
             'Houston': [29.7604, -95.3698],
             'Austin': [30.2672, -97.7431]
         };
-
         // Wait for map tiles to load
         async function waitForTilesLoaded(layer) {
             return new Promise((resolve) => {
@@ -416,7 +436,6 @@
                 setTimeout(resolve, 10000);
             });
         }
-
         // Get selected markets
         function getSelectedMarkets() {
             const checkboxes = document.querySelectorAll('#market-selector-list input[type="checkbox"][value]');
@@ -427,7 +446,6 @@
             }
             return selected;
         }
-
         // Take screenshots for the selected markets
         async function takeMarketScreenshots() {
             let marketsToCapture = getSelectedMarkets();
@@ -437,11 +455,9 @@
                 alert('Please select at least one market.');
                 return;
             }
-
             const currentZoom = map.getZoom();
             const currentCenter = map.getCenter();
             const originalLayer = map.hasLayer(satelliteLayer) ? satelliteLayer : streetLayer;
-
             // Store original display styles
             const dropdownContainer = document.querySelector('.dropdown-container');
             const propertySelector = document.getElementById('property-selector');
@@ -450,6 +466,7 @@
             const propertySearchContainer = document.getElementById('property-search-container');
             const dateTime = document.getElementById('date-time');
             const mapTitle = document.getElementById('map-title');
+            const backToSearchBtn = document.querySelector('.back-to-search-btn');
             const originalStyles = {
                 dropdownContainer: dropdownContainer.style.display,
                 propertySelector: propertySelector.style.display,
@@ -457,31 +474,26 @@
                 marketSearchContainer: marketSearchContainer.style.display,
                 propertySearchContainer: propertySearchContainer.style.display,
                 dateTime: dateTime.style.display,
-                mapTitle: mapTitle.style.display
+                mapTitle: mapTitle.style.display,
+                backToSearchBtn: backToSearchBtn.style.display
             };
-
             const screenshots = [];
-
             for (const market of marketsToCapture) {
                 const marketProperties = properties.filter(prop => prop.market === market && !excluded.has(properties.indexOf(prop)));
                 if (marketProperties.length === 0) continue;
-
                 const bounds = L.latLngBounds(marketProperties.map(prop => [prop.lat, prop.lng]));
                 const cityCoords = marketCityCoords[market] || bounds.getCenter();
                 const zoomLevel = 11;
-
                 // Update marker numbers for this market
                 const marketIndices = properties
                     .map((prop, index) => ({ prop, index }))
                     .filter(({ prop, index }) => prop.market === market && !excluded.has(index))
                     .map(({ index }) => index);
-
                 Object.keys(markers).forEach(index => {
                     if (map.hasLayer(markers[index])) {
                         map.removeLayer(markers[index]);
                     }
                 });
-
                 marketIndices.forEach((index, displayIndex) => {
                     const property = properties[index];
                     const number = displayIndex + 1;
@@ -492,21 +504,16 @@
                         iconSize: [28, 28],
                         iconAnchor: [14, 14]
                     });
-
                     markers[index].setIcon(customIcon);
                     markers[index].addTo(map);
                 });
-
                 map.setView(cityCoords, zoomLevel);
                 map.fitBounds(bounds.pad(0.5));
                 await new Promise(resolve => setTimeout(resolve, 2000));
-
                 map.removeLayer(satelliteLayer);
                 streetLayer.addTo(map);
                 await waitForTilesLoaded(streetLayer);
-
                 await new Promise(resolve => setTimeout(resolve, 2000));
-
                 // Hide UI elements
                 dropdownContainer.style.display = 'none';
                 propertySelector.style.display = 'none';
@@ -515,7 +522,7 @@
                 propertySearchContainer.style.display = 'none';
                 dateTime.style.display = 'none';
                 mapTitle.style.display = 'none';
-
+                backToSearchBtn.style.display = 'none';
                 // Create key div
                 let keyDiv = document.createElement('div');
                 keyDiv.style.position = 'absolute';
@@ -528,7 +535,6 @@
                 keyDiv.style.zIndex = '1000';
                 keyDiv.style.maxWidth = '320px';
                 keyDiv.style.overflow = 'auto';
-
                 let keyHtml = `<h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #1f2937;">${market} Market Key</h3><table class="key-table"><tr><th>Number</th><th>Address</th><th>Acreage</th></tr>`;
                 marketProperties.forEach((prop, displayIndex) => {
                     const index = properties.indexOf(prop);
@@ -540,9 +546,7 @@
                 keyHtml += '</table>';
                 keyDiv.innerHTML = keyHtml;
                 document.body.appendChild(keyDiv);
-
                 await new Promise(resolve => setTimeout(resolve, 1000));
-
                 try {
                     const canvas = await html2canvas(document.body, {
                         useCORS: true,
@@ -558,10 +562,8 @@
                     console.error(`Error taking screenshot for market ${market}:`, error);
                     alert(`Failed to take screenshot for market ${market}. Please try again.`);
                 }
-
                 keyDiv.remove();
             }
-
             // Restore UI elements
             dropdownContainer.style.display = originalStyles.dropdownContainer;
             propertySelector.style.display = originalStyles.propertySelector;
@@ -570,14 +572,12 @@
             propertySearchContainer.style.display = originalStyles.propertySearchContainer;
             dateTime.style.display = originalStyles.dateTime;
             mapTitle.style.display = originalStyles.mapTitle;
-
+            backToSearchBtn.style.display = originalStyles.backToSearchBtn;
             map.setView(currentCenter, currentZoom);
             originalLayer.addTo(map);
             updateMapAndProperties(getSelectedMarkets());
-
             document.getElementById('loading-indicator').style.display = 'none';
             document.getElementById('loading-indicator').textContent = 'Loading properties...';
-
             if (screenshots.length > 0) {
                 const { jsPDF } = window.jspdf;
                 const dateStr = new Date().toISOString().split('T')[0];
@@ -585,7 +585,6 @@
                     const doc = new jsPDF({ orientation: 'landscape' });
                     const pdfWidth = doc.internal.pageSize.getWidth();
                     const pdfHeight = doc.internal.pageSize.getHeight();
-
                     const imgProps = doc.getImageProperties(screenshot.dataURL);
                     const scale = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
                     const width = imgProps.width * scale;
@@ -597,7 +596,6 @@
                 }
             }
         }
-
         // Parse CSV and initialize map markers
         Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSepf04ahEjboAEowbxyzMhOq18C-qGYzcrHAAvnF85Er-b_zpbk-nC6MZ7OZmlui5sLnl6q7jwiw7C/pub?gid=0&single=true&output=csv', {
             download: true,
@@ -606,7 +604,6 @@
             complete: async function(results) {
                 document.getElementById('loading-indicator').style.display = 'block';
                 document.getElementById('loading-indicator').textContent = 'Loading properties...';
-
                 properties = results.data
                     .map(row => ({
                         name: row.Name || 'N/A',
@@ -620,14 +617,12 @@
                         link: row.link || 'N/A'
                     }))
                     .filter(row => !isNaN(row.lat) && !isNaN(row.lng));
-
                 if (properties.length > 0) {
                     const bounds = L.latLngBounds(properties.map(prop => [prop.lat, prop.lng]));
                     map.fitBounds(bounds.pad(0.2));
                 } else {
                     console.warn('No valid properties loaded from CSV. Using fallback view.');
                 }
-
                 // Initial marker creation with global numbering
                 for (let index = 0; index < properties.length; index++) {
                     const property = properties[index];
@@ -639,7 +634,6 @@
                         iconSize: [28, 28],
                         iconAnchor: [14, 14]
                     });
-
                     const popupContent = `
                         <div style="font-family: 'Inter', sans-serif; font-size: 13px; color: #1f2937;">
                             <b>Name:</b> ${property.name}<br>
@@ -656,14 +650,11 @@
                             </label>
                         </div>
                     `;
-
                     const marker = L.marker([property.lat, property.lng], { icon: customIcon })
                         .addTo(map)
                         .bindPopup(popupContent);
-
                     markers[index] = marker;
                 }
-
                 // Populate property selector
                 const propertySelector = document.getElementById('property-selector');
                 propertySelector.innerHTML = '<option value="">Select a property...</option>';
@@ -673,7 +664,6 @@
                     option.textContent = `${index + 1}: ${property.name}`;
                     propertySelector.appendChild(option);
                 });
-
                 propertySelector.addEventListener('change', function() {
                     const selectedIndex = parseInt(this.value);
                     if (selectedIndex >= 0) {
@@ -682,7 +672,6 @@
                         markers[selectedIndex].openPopup();
                     }
                 });
-
                 // Populate market selector with checkboxes
                 const markets = [...new Set(properties.map(p => p.market).filter(m => m !== 'N/A' && m !== ''))];
                 const marketSelectorList = document.getElementById('market-selector-list');
@@ -697,7 +686,6 @@
                     label.appendChild(document.createTextNode(` ${market}`));
                     marketSelectorList.appendChild(label);
                 });
-
                 // Toggle market selector visibility
                 const marketToggle = document.getElementById('market-toggle');
                 marketToggle.addEventListener('click', function() {
@@ -705,7 +693,6 @@
                     marketList.classList.toggle('collapsed');
                     this.textContent = marketList.classList.contains('collapsed') ? 'Show Market Selection' : 'Hide Market Selection';
                 });
-
                 // Event for select all
                 const selectAllCheckbox = document.getElementById('select-all-markets');
                 selectAllCheckbox.addEventListener('change', function() {
@@ -713,7 +700,6 @@
                     marketCheckboxes.forEach(cb => cb.checked = this.checked);
                     updateMapAndProperties(getSelectedMarkets());
                 });
-
                 // Event for individual market checkboxes
                 const marketCheckboxes = marketSelectorList.querySelectorAll('input[type="checkbox"][value]');
                 marketCheckboxes.forEach(cb => {
@@ -723,7 +709,6 @@
                         updateMapAndProperties(getSelectedMarkets());
                     });
                 });
-
                 // Property search functionality
                 const propertySearchInput = document.getElementById('property-search');
                 const searchResults = document.getElementById('search-results');
@@ -737,9 +722,9 @@
                     const selectedMarkets = getSelectedMarkets();
                     const matchingProperties = properties
                         .map((prop, index) => ({ prop, index }))
-                        .filter(({ prop, index }) => 
-                            prop.name.toLowerCase().includes(value) && 
-                            (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) && 
+                        .filter(({ prop, index }) =>
+                            prop.name.toLowerCase().includes(value) &&
+                            (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) &&
                             !excluded.has(index)
                         );
                     if (matchingProperties.length > 0) {
@@ -760,7 +745,6 @@
                         searchResults.style.display = 'none';
                     }
                 });
-
                 // Market search functionality
                 const marketSearchInput = document.getElementById('market-search');
                 const marketSearchResults = document.getElementById('market-search-results');
@@ -792,7 +776,6 @@
                         marketSearchResults.style.display = 'none';
                     }
                 });
-
                 // Function to update map, property selector, and title based on selected markets
                 function updateMapAndProperties(selectedMarkets) {
                     // Update map title
@@ -804,23 +787,20 @@
                     } else {
                         mapTitle.textContent = 'Selected Markets Map';
                     }
-
                     // Get indices of properties for the selected markets
                     const marketIndices = properties
                         .map((prop, index) => ({ prop, index }))
-                        .filter(({ prop, index }) => 
-                            (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) && 
+                        .filter(({ prop, index }) =>
+                            (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) &&
                             !excluded.has(index)
                         )
                         .map(({ index }) => index);
-
                     // Update marker numbers
                     Object.keys(markers).forEach(index => {
                         if (map.hasLayer(markers[index])) {
                             map.removeLayer(markers[index]);
                         }
                     });
-
                     marketIndices.forEach((index, displayIndex) => {
                         const property = properties[index];
                         const number = displayIndex + 1;
@@ -831,11 +811,9 @@
                             iconSize: [28, 28],
                             iconAnchor: [14, 14]
                         });
-
                         markers[index].setIcon(customIcon);
                         markers[index].addTo(map);
                     });
-
                     // Update property selector
                     const propertySelector = document.getElementById('property-selector');
                     propertySelector.innerHTML = '<option value="">Select a property...</option>';
@@ -847,7 +825,6 @@
                         option.textContent = `${number}: ${property.name}`;
                         propertySelector.appendChild(option);
                     });
-
                     // Update map bounds
                     const visibleProperties = properties.filter((prop, index) => marketIndices.includes(index));
                     if (visibleProperties.length > 0) {
@@ -855,7 +832,6 @@
                         map.fitBounds(bounds.pad(0.2));
                     }
                 }
-
                 document.getElementById('manage-exclusions').addEventListener('click', function() {
                     const selectedMarkets = getSelectedMarkets();
                     const modal = document.getElementById('exclusions-modal');
@@ -879,16 +855,13 @@
                         }
                     });
                 });
-
                 document.getElementById('screenshot-markets').addEventListener('click', takeMarketScreenshots);
-
                 const closeSpans = document.getElementsByClassName('close');
                 for (let i = 0; i < closeSpans.length; i++) {
                     closeSpans[i].addEventListener('click', function() {
                         this.parentElement.parentElement.style.display = 'none';
                     });
                 }
-
                 document.getElementById('send-excluded').addEventListener('click', function() {
                     if (excluded.size === 0) {
                         alert('No properties excluded.');
@@ -914,10 +887,8 @@
                     const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`;
                     window.open(outlookUrl, '_blank');
                 });
-
                 // Initial update
                 updateMapAndProperties(getSelectedMarkets());
-
                 document.getElementById('loading-indicator').style.display = 'none';
             },
             error: function(error) {
@@ -929,7 +900,6 @@
                 document.getElementById('loading-indicator').style.display = 'none';
             }
         });
-
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('exclude-checkbox')) {
                 const index = parseInt(e.target.dataset.index);
