@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
     <style>
         html, body {
@@ -437,11 +438,6 @@
     </style>
 </head>
 <body>
-    <div class="map-title" id="map-title">NIOS Land Map</div>
-    <div class="logo">
-        <img src="https://ik.imagekit.io/lwowie9pn/Unknown-1%20copy.png?updatedAt=1754674703991" alt="NIOS Logo">
-        <span></span>
-    </div>
     <div id="loading-indicator">Loading properties...</div>
     <div class="date-time" id="date-time"></div>
     <select id="property-selector">
@@ -467,7 +463,12 @@
         <button id="screenshot-markets">Take Screenshots</button>
     </div>
     <div id="map">
-        <a href="https://jakepistone.github.io/NIOS-LSE/" class="back-to-search-btn">Back to Land Search</a>
+        <div class="map-title" id="map-title">NIOS Land Map</div>
+        <div class="logo">
+            <img src="https://ik.imagekit.io/lwowie9pn/Unknown-1%20copy.png?updatedAt=1754674703991" alt="NIOS Logo">
+            <span></span>
+        </div>
+        <a href="https://jakepistone.github.io/NIOS-Land-Generator-/" class="back-to-search-btn">Back to Land Search</a>
     </div>
     <div id="exclusions-modal" class="modal">
         <div class="modal-content">
@@ -554,11 +555,14 @@
         }
         // Take screenshots for the selected markets
         async function takeMarketScreenshots() {
+            document.getElementById('loading-indicator').style.display = 'block';
+            document.getElementById('loading-indicator').textContent = 'Generating PDFs...';
             let marketsToCapture = getSelectedMarkets();
             if (marketsToCapture === 'all') {
                 marketsToCapture = [...new Set(properties.map(p => p.market).filter(m => m !== 'N/A' && m !== ''))];
             } else if (marketsToCapture.length === 0) {
                 alert('Please select at least one market.');
+                document.getElementById('loading-indicator').style.display = 'none';
                 return;
             }
             const currentZoom = map.getZoom();
@@ -583,7 +587,7 @@
                 mapTitle: mapTitle.style.display,
                 backToSearchBtn: backToSearchBtn.style.display
             };
-            const screenshots = [];
+            const { jsPDF } = window.jspdf;
             for (const market of marketsToCapture) {
                 const marketProperties = properties.filter(prop => prop.market === market && !excluded.has(properties.indexOf(prop)));
                 if (marketProperties.length === 0) continue;
@@ -615,35 +619,40 @@
                 });
                 map.setView(cityCoords, zoomLevel);
                 map.fitBounds(bounds.pad(0.5));
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 3000));
                 map.removeLayer(satelliteLayer);
                 streetLayer.addTo(map);
                 await waitForTilesLoaded(streetLayer);
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                // Hide UI elements
+                // Temporarily remove flood layer to avoid CORS issues
+                let floodWasOn = map.hasLayer(floodLayer);
+                if (floodWasOn) {
+                    map.removeLayer(floodLayer);
+                }
+                // Hide UI elements except map title and logo
                 dropdownContainer.style.display = 'none';
                 propertySelector.style.display = 'none';
                 marketSelectorContainer.style.display = 'none';
                 marketSearchContainer.style.display = 'none';
                 propertySearchContainer.style.display = 'none';
                 dateTime.style.display = 'none';
-                mapTitle.style.display = 'none';
                 backToSearchBtn.style.display = 'none';
-                // Create key div
+                mapTitle.textContent = `${market} Market Map`;
+                mapTitle.style.display = 'block';
+                // Create key div and append to map container
                 let keyDiv = document.createElement('div');
                 keyDiv.style.position = 'absolute';
-                keyDiv.style.bottom = '80px';
+                keyDiv.style.bottom = '20px';
                 keyDiv.style.right = '20px';
                 keyDiv.style.background = '#ffffff';
                 keyDiv.style.padding = '12px';
                 keyDiv.style.borderRadius = '8px';
                 keyDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 keyDiv.style.zIndex = '1000';
-                keyDiv.style.maxWidth = '320px';
+                keyDiv.style.maxWidth = '400px';
                 keyDiv.style.overflow = 'auto';
                 let keyHtml = `<h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #1f2937;">${market} Market Key</h3><table class="key-table"><tr><th>Number</th><th>Address</th><th>Acreage</th></tr>`;
                 marketProperties.forEach((prop, displayIndex) => {
-                    const index = properties.indexOf(prop);
                     const num = displayIndex + 1;
                     const name = prop.name;
                     const ac = prop.ac || 'N/A';
@@ -651,22 +660,37 @@
                 });
                 keyHtml += '</table>';
                 keyDiv.innerHTML = keyHtml;
-                document.body.appendChild(keyDiv);
+                const mapContainer = document.getElementById('map');
+                mapContainer.appendChild(keyDiv);
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 try {
-                    const canvas = await html2canvas(document.body, {
+                    const canvas = await html2canvas(mapContainer, {
                         useCORS: true,
                         allowTaint: false,
-                        logging: false,
-                        width: window.innerWidth,
-                        height: window.innerHeight,
-                        scale: window.devicePixelRatio
+                        logging: true,
+                        width: mapContainer.offsetWidth,
+                        height: mapContainer.offsetHeight,
+                        scale: 2
                     });
-                    const dataURL = canvas.toDataURL('image/png');
-                    screenshots.push({ market, dataURL });
+                    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                    const pdfWidth = doc.internal.pageSize.getWidth();
+                    const pdfHeight = doc.internal.pageSize.getHeight();
+                    const imgProps = doc.getImageProperties(canvas.toDataURL('image/png'));
+                    const scale = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+                    const imgWidth = imgProps.width * scale;
+                    const imgHeight = imgProps.height * scale;
+                    const imgX = (pdfWidth - imgWidth) / 2;
+                    const imgY = (pdfHeight - imgHeight) / 2;
+                    doc.addImage(canvas.toDataURL('image/png'), 'PNG', imgX, imgY, imgWidth, imgHeight);
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    doc.save(`NIOS_Land_Map_${market.replace(/[^\w-]/g, '_')}_${dateStr}.pdf`);
                 } catch (error) {
-                    console.error(`Error taking screenshot for market ${market}:`, error);
-                    alert(`Failed to take screenshot for market ${market}. Please try again.`);
+                    console.error(`Error generating PDF for market ${market}:`, error);
+                    alert(`Failed to generate PDF for market ${market}. Please try again.`);
+                }
+                // Restore flood layer if it was on
+                if (floodWasOn) {
+                    floodLayer.addTo(map);
                 }
                 keyDiv.remove();
             }
@@ -683,24 +707,6 @@
             originalLayer.addTo(map);
             updateMapAndProperties(getSelectedMarkets());
             document.getElementById('loading-indicator').style.display = 'none';
-            document.getElementById('loading-indicator').textContent = 'Loading properties...';
-            if (screenshots.length > 0) {
-                const { jsPDF } = window.jspdf;
-                const dateStr = new Date().toISOString().split('T')[0];
-                for (const screenshot of screenshots) {
-                    const doc = new jsPDF({ orientation: 'landscape' });
-                    const pdfWidth = doc.internal.pageSize.getWidth();
-                    const pdfHeight = doc.internal.pageSize.getHeight();
-                    const imgProps = doc.getImageProperties(screenshot.dataURL);
-                    const scale = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
-                    const width = imgProps.width * scale;
-                    const height = imgProps.height * scale;
-                    const x = (pdfWidth - width) / 2;
-                    const y = (pdfHeight - height) / 2;
-                    doc.addImage(screenshot.dataURL, 'PNG', x, y, width, height);
-                    doc.save(`NIOS Land Map_${screenshot.market}_${dateStr}.pdf`);
-                }
-            }
         }
         // Parse CSV and initialize map markers
         Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSepf04ahEjboAEowbxyzMhOq18C-qGYzcrHAAvnF85Er-b_zpbk-nC6MZ7OZmlui5sLnl6q7jwiw7C/pub?gid=0&single=true&output=csv', {
